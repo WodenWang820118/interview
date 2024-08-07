@@ -4,7 +4,7 @@
       <div class="q-mb-xl">
         <q-input v-model="tempData.name" label="姓名" />
         <q-input v-model="tempData.age" label="年齡" />
-        <q-btn color="primary" class="q-mt-md">新增</q-btn>
+        <q-btn color="primary" class="q-mt-md" @click="handleAdd">新增</q-btn>
       </div>
 
       <q-table
@@ -73,6 +73,25 @@
           </div>
         </template>
       </q-table>
+
+      <!-- Edit Dialog -->
+      <q-dialog v-model="editDialog">
+        <q-card>
+          <q-card-section>
+            <div class="text-h6">Edit Item</div>
+          </q-card-section>
+
+          <q-card-section>
+            <q-input v-model="tempData.name" label="姓名" />
+            <q-input v-model="tempData.age" label="年齡" />
+          </q-card-section>
+
+          <q-card-actions align="right">
+            <q-btn flat label="Cancel" v-close-popup />
+            <q-btn flat label="Save" color="primary" @click="saveEdit" />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
     </div>
   </q-page>
 </template>
@@ -81,11 +100,20 @@
 import axios from 'axios';
 import { QTableProps } from 'quasar';
 import { ref } from 'vue';
+import { useQuasar } from 'quasar';
+
 interface btnType {
   label: string;
   icon: string;
   status: string;
 }
+
+interface Item {
+  name: string;
+  age: number;
+}
+
+const $q = useQuasar();
 const blockData = ref([
   {
     name: 'test',
@@ -121,10 +149,74 @@ const tableButtons = ref([
 
 const tempData = ref({
   name: '',
-  age: '',
+  age: 0,
 });
-function handleClickOption(btn, data) {
-  // ...
+
+const editDialog = ref(false);
+let editingItemIndex = ref(-1);
+
+function handleClickOption(btn: btnType, data: Item) {
+  switch (btn.status) {
+    case 'edit':
+      // if desired to make editted data only available in the dialog
+      // we might use a separate tempData for edit
+      tempData.value = { ...data };
+      editingItemIndex.value = blockData.value.findIndex(
+        (item) => item.name === data.name && item.age === data.age
+      );
+      editDialog.value = true;
+      break;
+    case 'delete':
+      if (confirm('Are you sure you want to delete this item?')) {
+        const index = blockData.value.findIndex(
+          (item) => item.name === data.name && item.age === data.age
+        );
+        if (index !== -1) {
+          blockData.value.splice(index, 1);
+          $q.notify({
+            type: 'positive',
+            message: 'Item deleted successfully',
+          });
+        } else {
+          $q.notify({
+            type: 'negative',
+            message: 'Error: Item not found',
+          });
+        }
+      }
+      break;
+    default:
+      console.warn('Unknown button status:', btn.status);
+  }
+}
+
+function handleAdd() {
+  if (tempData.value.name && tempData.value.age) {
+    blockData.value.push({ ...tempData.value });
+    tempData.value = { name: '', age: 0 };
+    $q.notify({
+      type: 'positive',
+      message: 'Item added successfully',
+    });
+  } else {
+    $q.notify({
+      type: 'negative',
+      message: 'Please fill in all fields',
+    });
+  }
+}
+
+function saveEdit() {
+  if (editingItemIndex.value !== -1) {
+    blockData.value[editingItemIndex.value] = { ...tempData.value };
+    $q.notify({
+      type: 'positive',
+      message: 'Item updated successfully',
+    });
+    editDialog.value = false;
+    tempData.value = { name: '', age: 0 };
+    editingItemIndex.value = -1;
+  }
 }
 </script>
 
